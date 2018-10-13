@@ -119,7 +119,7 @@ update msg model =
                 tmToStore =
                     urlToTm model.url
             in
-            -- Only store the latest program with comments, leaving the remaining properties (tape, state, symbol set) unchanged.
+            -- Only store the latest program with comments, leaving the remaining properties (tape, state, alphabet) unchanged.
             ( model, Nav.pushUrl model.key (model.url.path ++ tmToQuery { tmToStore | prog = tm.prog, comments = tm.comments }) )
 
         ResetTape ->
@@ -128,7 +128,7 @@ update msg model =
                     model.url.query |> Maybe.withDefault "" |> String.toLower
 
                 originalTape =
-                    query |> tapeFromQuery tm.symbolSet |> newTape (headFromQuery query)
+                    query |> tapeFromQuery tm.alphabet |> newTape (headFromQuery query)
 
                 resetTm =
                     { tm | currentState = Just 'a', tape = originalTape }
@@ -188,9 +188,14 @@ inputColor =
     rgb255 255 220 200
 
 
-commentColor : Element.Color
-commentColor =
+commentBoxColor : Element.Color
+commentBoxColor =
     rgb255 162 214 208
+
+
+commentTextColor : Element.Color
+commentTextColor =
+    rgb255 100 100 100
 
 
 disabledColor : Element.Color
@@ -219,13 +224,13 @@ view model =
             , Element.centerX
             ]
             (Element.el [ Element.Font.size 48, Element.padding 50, Element.centerX ] (Element.text "The Turing Machine")
-                :: tmLabel model.tm.currentState
-                :: viewTape model.tm.symbolSet 20 model.tm.tape
+                :: tmLabel model.tm.currentState model.tm.comments
+                :: viewTape model.tm.alphabet 20 model.tm.tape
                 ++ controlButtons model.errorMsg model.tm.currentState
                 ++ [ Element.el [ Element.Font.italic, Element.centerX, Element.paddingEach { top = 30, left = 0, right = 0, bottom = 0 } ]
                         (Element.text model.errorMsg)
                    ]
-                ++ viewProgram model.tm.comments model.tm.symbolSet (prog model.tm.prog)
+                ++ viewProgram model.tm.comments model.tm.alphabet (prog model.tm.prog)
             )
             |> Element.el
                 [ Element.width Element.fill
@@ -252,14 +257,26 @@ view model =
     }
 
 
-tmLabel : State -> Element msg
-tmLabel state =
+tmLabel : State -> Comments -> Element msg
+tmLabel state comments =
+    let
+        commentText =
+            case commentFor state comments of
+                Nothing ->
+                    ""
+
+                Just comment ->
+                    "  " ++ String.trim comment
+    in
     Element.row [ Element.width Element.fill ]
-        [ Element.el [ Element.centerX ] (Element.text ("State: " ++ stateDisplayText state)) ]
+        [ Element.el [ Element.centerX ] (Element.text "State: ")
+        , Element.el [ Element.centerX, Element.Font.bold ] (Element.text (stateDisplayText state))
+        , Element.el [ Element.centerX, Element.Font.italic, Element.Font.size 18, Element.Font.color commentTextColor ] (Element.text commentText)
+        ]
 
 
-viewTape : SymbolSet -> Int -> Tape -> List (Element msg)
-viewTape symbolSet halfSize ( l, h, r ) =
+viewTape : Alphabet -> Int -> Tape -> List (Element msg)
+viewTape alphabet halfSize ( l, h, r ) =
     let
         leftOfHead =
             l ++ List.repeat halfSize Blank |> List.take halfSize
@@ -268,7 +285,7 @@ viewTape symbolSet halfSize ( l, h, r ) =
             r ++ List.repeat halfSize Blank |> List.take halfSize
 
         tapeText =
-            tapeChars symbolSet (List.reverse leftOfHead ++ (h :: rightOfHead))
+            tapeChars alphabet (List.reverse leftOfHead ++ (h :: rightOfHead))
 
         data =
             [ List.repeat halfSize '\u{00A0}' ++ ('▼' :: List.repeat halfSize '\u{00A0}')
@@ -332,13 +349,13 @@ controlButtons errMsg currentState =
     ]
 
 
-viewProgram : Comments -> SymbolSet -> List ProgLine -> List (Element Msg)
-viewProgram comments symbolSet prog =
+viewProgram : Comments -> Alphabet -> List ProgLine -> List (Element Msg)
+viewProgram comments alphabet prog =
     Element.el
         [ Element.centerX
         , Element.paddingEach { top = 30, left = 0, right = 0, bottom = 30 }
         ]
-        (progToTable comments symbolSet prog)
+        (progToTable comments alphabet prog)
         :: [ Element.row [ Element.spacing 40, Element.centerX ]
                 [ if List.length prog == (26 * 3) then
                     Element.Input.button disabledButtonStyle
@@ -358,16 +375,16 @@ viewProgram comments symbolSet prog =
            ]
 
 
-progToTable : Comments -> SymbolSet -> List ProgLine -> Element Msg
-progToTable comments symbolSet progLines =
+progToTable : Comments -> Alphabet -> List ProgLine -> Element Msg
+progToTable comments alphabet progLines =
     let
         symbolEdit pl old new =
             let
                 oldText =
-                    old |> String.toList |> List.map (fromDisplaySymbol symbolSet) |> String.fromList
+                    old |> String.toList |> List.map (fromDisplaySymbol alphabet) |> String.fromList
 
                 newText =
-                    new |> String.toList |> List.map (fromDisplaySymbol symbolSet) |> String.fromList
+                    new |> String.toList |> List.map (fromDisplaySymbol alphabet) |> String.fromList
             in
             case oldText of
                 "0" ->
@@ -490,14 +507,14 @@ progToTable comments symbolSet progLines =
             ]
 
         commentStyle =
-            [ Element.Background.color commentColor
+            [ Element.Background.color commentBoxColor
             , Element.width Element.fill
             , Element.height Element.fill
             , Element.Border.width 0
             , Element.Font.italic
             , Element.Font.size 14
             , Element.padding 12
-            , Element.Font.color (rgb255 100 100 100)
+            , Element.Font.color commentTextColor
             ]
 
         stateFromTriplet : List ProgLine -> State
@@ -549,7 +566,7 @@ progToTable comments symbolSet progLines =
                                 \pl ->
                                     let
                                         txt =
-                                            symbolText symbolSet pl.read
+                                            symbolText alphabet pl.read
                                     in
                                     txt
                                         |> Element.text
@@ -565,9 +582,9 @@ progToTable comments symbolSet progLines =
                           , view =
                                 \pl ->
                                     Element.Input.text inputStyle
-                                        { text = symbolText symbolSet pl.write
+                                        { text = symbolText alphabet pl.write
                                         , placeholder = Nothing
-                                        , onChange = symbolEdit pl (symbolText symbolSet pl.write)
+                                        , onChange = symbolEdit pl (symbolText alphabet pl.write)
                                         , label = Element.Input.labelAbove [] Element.none
                                         }
                           }
@@ -644,12 +661,12 @@ disabledButtonStyle =
 
 
 stringAt : Int -> List Char -> String
-stringAt i symbols =
+stringAt i =
     if i < 0 then
-        " "
+        always " "
 
     else
-        symbols |> List.drop i |> List.head |> Maybe.withDefault ' ' |> String.fromChar
+        List.drop i >> List.head >> Maybe.withDefault ' ' >> String.fromChar
 
 
 rgb255 : Float -> Float -> Float -> Element.Color

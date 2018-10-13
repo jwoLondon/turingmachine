@@ -1,4 +1,4 @@
-module Symbols exposing (Move(..), Symbol(..), SymbolSet(..), fromDisplaySymbol, moveChar, moveFromChar, moveText, numToSym, stateDisplayText, stateShortText, symbolChar, symbolFromChar, symbolText, tapeChars)
+module Symbols exposing (Alphabet(..), Move(..), Symbol(..), fromDisplaySymbol, moveChar, moveFromChar, moveText, numToSym, stateDisplayText, stateShortText, symbolChar, symbolFromChar, symbolText, tapeChars)
 
 
 type Move
@@ -15,23 +15,23 @@ type Symbol
 
 {-| The symbol set used to encode the turing machine tape.
 -}
-type SymbolSet
+type Alphabet
     = Binary
     | CatsAndDogs
 
 
 {-| Provide a representation of a tape for display.
 -}
-tapeChars : SymbolSet -> List Symbol -> List Char
-tapeChars symbolSet =
+tapeChars : Alphabet -> List Symbol -> List Char
+tapeChars alphabet =
     let
         symChar sym =
             case sym of
                 Zero ->
-                    toDisplaySymbol symbolSet '0'
+                    toDisplaySymbol alphabet '0'
 
                 One ->
-                    toDisplaySymbol symbolSet '1'
+                    toDisplaySymbol alphabet '1'
 
                 Blank ->
                     -- Non breaking space to ensure cell border.
@@ -42,14 +42,14 @@ tapeChars symbolSet =
 
 {-| Provide the textual representation of a given symbol for displaying in program.
 -}
-symbolText : SymbolSet -> Symbol -> String
-symbolText symbolSet sym =
+symbolText : Alphabet -> Symbol -> String
+symbolText alphabet sym =
     case sym of
         Zero ->
-            toDisplaySymbol symbolSet '0' |> String.fromChar
+            toDisplaySymbol alphabet '0' |> String.fromChar
 
         One ->
-            toDisplaySymbol symbolSet '1' |> String.fromChar
+            toDisplaySymbol alphabet '1' |> String.fromChar
 
         Blank ->
             "blank"
@@ -119,9 +119,9 @@ stateShortText state =
 {-| Provide a symbol from the given character. If character does not match one
 of the known symbols it is assumed to represent a blank.
 -}
-symbolFromChar : SymbolSet -> Char -> Symbol
-symbolFromChar symbolSet chr =
-    case fromDisplaySymbol symbolSet chr of
+symbolFromChar : Alphabet -> Char -> Symbol
+symbolFromChar alphabet chr =
+    case fromDisplaySymbol alphabet chr of
         '0' ->
             Zero
 
@@ -167,9 +167,9 @@ numToSym num =
             Blank
 
 
-toDisplaySymbol : SymbolSet -> Char -> Char
-toDisplaySymbol symbolSet chr =
-    case symbolSet of
+toDisplaySymbol : Alphabet -> Char -> Char
+toDisplaySymbol alphabet chr =
+    case alphabet of
         Binary ->
             chr
 
@@ -187,9 +187,9 @@ toDisplaySymbol symbolSet chr =
                     chr
 
 
-fromDisplaySymbol : SymbolSet -> Char -> Char
-fromDisplaySymbol symbolSet chr =
-    case symbolSet of
+fromDisplaySymbol : Alphabet -> Char -> Char
+fromDisplaySymbol alphabet chr =
+    case alphabet of
         Binary ->
             chr
 

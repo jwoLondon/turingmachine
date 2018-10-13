@@ -20,7 +20,7 @@ type alias TM =
     { tape : Tape
     , prog : Prog
     , currentState : State
-    , symbolSet : SymbolSet
+    , alphabet : Alphabet
     , comments : Comments
     }
 
@@ -343,7 +343,7 @@ states tm =
 
 
 {-| Generates a URL query string reflecting the Turing Machine including the current state,
-the tape, the program and the symbol set. Useful for permalinking the Turing Machine.
+the tape, the program and the alphabet. Useful for permalinking the Turing Machine.
 -}
 tmToQuery : TM -> String
 tmToQuery tm =
@@ -351,11 +351,9 @@ tmToQuery tm =
         ( tLeft, tHead, tRight ) =
             tm.tape
 
-        tapeQuery : Maybe Url.Builder.QueryParameter
         tapeQuery =
             Just (Url.Builder.string "tape" (List.reverse tLeft ++ tHead :: tRight |> List.map symbolChar |> String.fromList))
 
-        headQuery : Maybe Url.Builder.QueryParameter
         headQuery =
             case List.length tLeft of
                 0 ->
@@ -364,7 +362,6 @@ tmToQuery tm =
                 s ->
                     Just (Url.Builder.string "head" (String.fromInt s))
 
-        currentStateQuery : Maybe Url.Builder.QueryParameter
         currentStateQuery =
             case tm.currentState of
                 Just 'a' ->
@@ -373,16 +370,14 @@ tmToQuery tm =
                 _ ->
                     Just (Url.Builder.string "state" (stateShortText tm.currentState))
 
-        symbolSetQuery : Maybe Url.Builder.QueryParameter
-        symbolSetQuery =
-            case tm.symbolSet of
+        alphabetQuery =
+            case tm.alphabet of
                 CatsAndDogs ->
-                    Just (Url.Builder.string "symbolset" "CatsAndDogs")
+                    Just (Url.Builder.string "alphabet" "CatsAndDogs")
 
-                _ ->
+                Binary ->
                     Nothing
 
-        progQuery : State -> List (Maybe Url.Builder.QueryParameter) -> List (Maybe Url.Builder.QueryParameter)
         progQuery state progQueries =
             let
                 tripletText progLine =
@@ -416,7 +411,6 @@ tmToQuery tm =
                 _ ->
                     progQueries
 
-        commentQuery : List (Maybe Url.Builder.QueryParameter)
         commentQuery =
             let
                 stateLabels =
@@ -433,7 +427,7 @@ tmToQuery tm =
             List.map commentText stateLabels
     in
     Url.Builder.toQuery
-        ([ tapeQuery, headQuery, currentStateQuery, symbolSetQuery ]
+        ([ tapeQuery, headQuery, currentStateQuery, alphabetQuery ]
             ++ progQuery (Just 'a') []
             ++ commentQuery
             |> List.filterMap identity
@@ -448,13 +442,13 @@ urlToTm url =
         query =
             url.query |> Maybe.withDefault "" |> String.toLower
 
-        symbolSet =
-            symbolSetFromQuery query
+        alphabet =
+            alphabetFromQuery query
     in
-    { tape = query |> tapeFromQuery symbolSet |> newTape (headFromQuery query)
-    , prog = progFromQuery symbolSet query
+    { tape = query |> tapeFromQuery alphabet |> newTape (headFromQuery query)
+    , prog = progFromQuery alphabet query
     , currentState = stateFromQuery query
-    , symbolSet = symbolSet
+    , alphabet = alphabet
 
     -- TODO: XXX Read comments from URL
     , comments = commentsFromQuery url
@@ -494,21 +488,21 @@ tapeRight ( l, h, r ) =
 {-| Generate a list of symbols from a given query string representation. If a
 query string is poorly formed or does not define tape, generates a blank tape.
 -}
-tapeFromQuery : SymbolSet -> String -> List Symbol
-tapeFromQuery symbolSet txt =
+tapeFromQuery : Alphabet -> String -> List Symbol
+tapeFromQuery alphabet txt =
     case submatches "tape=([01_]+)" txt of
         [ Just tTxt ] ->
-            tTxt |> String.toList |> List.map (symbolFromChar symbolSet)
+            tTxt |> String.toList |> List.map (symbolFromChar alphabet)
 
         _ ->
             []
 
 
-{-| Determine the requested symbol set to use from a URL query.
+{-| Determine the requested alphabet to use from a URL query.
 -}
-symbolSetFromQuery : String -> SymbolSet
-symbolSetFromQuery txt =
-    if String.contains "symbolset=catsanddogs" (String.toLower txt) then
+alphabetFromQuery : String -> Alphabet
+alphabetFromQuery txt =
+    if String.contains "alphabet=catsanddogs" (String.toLower txt) then
         CatsAndDogs
 
     else
@@ -585,8 +579,8 @@ headFromQuery txt =
 If a query string is poorly formed or does not define a program, generates and
 empty program.
 -}
-progFromQuery : SymbolSet -> String -> Prog
-progFromQuery symbolSet =
+progFromQuery : Alphabet -> String -> Prog
+progFromQuery alphabet =
     let
         triplet xss =
             case xss of
@@ -609,13 +603,13 @@ progFromQuery symbolSet =
                 [ w0, m0, n0, w1, m1, n1, w2, m2, n2 ] ->
                     let
                         l1 =
-                            { state = toState st, read = Zero, write = symbolFromChar symbolSet w0, move = moveFromChar m0, next = toState n0 }
+                            { state = toState st, read = Zero, write = symbolFromChar alphabet w0, move = moveFromChar m0, next = toState n0 }
 
                         l2 =
-                            { state = toState st, read = One, write = symbolFromChar symbolSet w1, move = moveFromChar m1, next = toState n1 }
+                            { state = toState st, read = One, write = symbolFromChar alphabet w1, move = moveFromChar m1, next = toState n1 }
 
                         l3 =
-                            { state = toState st, read = Blank, write = symbolFromChar symbolSet w2, move = moveFromChar m2, next = toState n2 }
+                            { state = toState st, read = Blank, write = symbolFromChar alphabet w2, move = moveFromChar m2, next = toState n2 }
                     in
                     [ ( lineHash l1, l1 ), ( lineHash l2, l2 ), ( lineHash l3, l3 ) ]
 
