@@ -69,11 +69,6 @@ type alias State =
     Maybe Char
 
 
-type Route
-    = Comment (Maybe String)
-    | Tape (Maybe String)
-
-
 {-| Check the next instruction to execute is valid. If it is not, an error message
 is provided; if not, an empty string. -|
 -}

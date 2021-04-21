@@ -41,7 +41,7 @@ type alias Model =
 
 
 init : () -> Url -> Nav.Key -> ( Model, Cmd msg )
-init flags url key =
+init _ url key =
     let
         tm =
             urlToTm url
@@ -149,11 +149,11 @@ update msg model =
             in
             ( { model | tm = newTm, errorMsg = validate newTm }, Cmd.none )
 
-        UrlChanged url ->
+        UrlChanged _ ->
             -- If we want to respond to a URL being changed, we can do so here.
             ( model, Cmd.none )
 
-        LinkClicked urlRequest ->
+        LinkClicked _ ->
             -- If we want to have URL links in page, we need to respond to them here.
             ( model, Cmd.none )
 
